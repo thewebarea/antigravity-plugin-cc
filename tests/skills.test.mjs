@@ -21,17 +21,18 @@ test("result handling recognises a Claude Code auto mode denial", () => {
   }
 });
 
-test("result handling gives both denial remedies, reliable one first", () => {
-  const permissions = RESULT_HANDLING.indexOf("`/permissions`");
-  const reword = RESULT_HANDLING.indexOf("Reword the task text");
-  assert.ok(permissions > -1, "result handling does not name /permissions");
-  assert.ok(reword > -1, "result handling does not offer rewording");
-  assert.ok(
-    permissions < reword,
-    "rewording is offered before /permissions; rewording has failed before and /permissions has not"
-  );
-  assert.match(RESULT_HANDLING, /without asking for confirmation/);
-  assert.match(RESULT_HANDLING, /never as the answer/);
+test("result handling offers only /permissions and forbids rewording past the classifier", () => {
+  assert.ok(RESULT_HANDLING.includes("`/permissions`"), "result handling does not name /permissions");
+  assert.match(RESULT_HANDLING, /Never reword the task text to get past the classifier/);
+  // The removed advice described the live repository as a throwaway sandbox to
+  // get a delegation past the classifier; no such phrasing may come back.
+  assert.doesNotMatch(RESULT_HANDLING, /throwaway copy; editing files/);
+  assert.doesNotMatch(RESULT_HANDLING, /cheaper first try|first try, never as the answer/);
+  for (const name of ["rescue.md", "continue.md"]) {
+    const source = read(`commands/${name}`);
+    assert.doesNotMatch(source, /cheaper first try/, `${name} still offers rewording past the classifier`);
+    assert.match(source, /never offer rewording/, `${name} does not forbid rewording past the classifier`);
+  }
 });
 
 test("result handling keeps a denial away from /agy:setup", () => {
