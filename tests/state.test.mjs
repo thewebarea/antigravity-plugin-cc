@@ -70,6 +70,33 @@ test("a directory outside any repository resolves to itself", () => {
   assert.equal(resolveWorkspaceRoot(loose), path.resolve(loose));
 });
 
+test("a .git in the home directory never makes home the workspace root", () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "agy-home-"));
+  scratchDirs.push(home);
+  fs.mkdirSync(path.join(home, ".git", "info"), { recursive: true });
+  const project = path.join(home, "dev", "proj");
+  fs.mkdirSync(path.join(project, "src"), { recursive: true });
+  // No .git in the project: the walk must stop below home and keep the caller's
+  // own directory instead of climbing to the home stub.
+  assert.equal(resolveWorkspaceRoot(project, home), path.resolve(project));
+  assert.equal(resolveWorkspaceRoot(path.join(project, "src"), home), path.join(project, "src"));
+  // A real repository under home is still found from any depth.
+  fs.mkdirSync(path.join(project, ".git"));
+  assert.equal(resolveWorkspaceRoot(path.join(project, "src"), home), path.resolve(project));
+  // Started in home itself, the caller's directory is still the answer.
+  assert.equal(resolveWorkspaceRoot(home, home), path.resolve(home));
+});
+
+test("the walk does not climb above home into a .git at an ancestor", () => {
+  const top = fs.mkdtempSync(path.join(os.tmpdir(), "agy-top-"));
+  scratchDirs.push(top);
+  fs.mkdirSync(path.join(top, ".git"));
+  const home = path.join(top, "home", "user");
+  const project = path.join(home, "work");
+  fs.mkdirSync(project, { recursive: true });
+  assert.equal(resolveWorkspaceRoot(project, home), path.resolve(project));
+});
+
 // This is F6: the hook resolved its cwd from the Stop payload and setup from
 // the environment, so a session in a subdirectory made them read different
 // roots and disagree about whether the gate was on.
