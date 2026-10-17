@@ -442,7 +442,7 @@ Use `/agy:rescue` for a new task, or `/agy:continue` to follow up in an existing
 
 ### Via prompt
 
-You can also just ask in plain language. The `agy:agy-rescue` subagent triggers proactively when a task should go to a second model:
+You can also just ask in plain language, as long as the request names agy or Antigravity. The `agy:agy-rescue` subagent runs only on such an explicit request; Claude never hands a task to it on its own initiative, because a write-capable run gives another model the live repository:
 
 ```text
 Ask agy to redesign the database connection handling to be more resilient.

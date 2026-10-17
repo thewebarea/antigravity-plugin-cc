@@ -1,5 +1,6 @@
 ---
 description: Delegate investigation, an explicit fix request, or follow-up work to the Antigravity (agy) rescue subagent
+disable-model-invocation: true
 argument-hint: "[--background|--wait] [--resume|--fresh] [--model <model>] [--effort <low|medium|high>] [what agy should investigate, solve, or continue]"
 allowed-tools: AskUserQuestion, Agent, Read, Grep
 ---

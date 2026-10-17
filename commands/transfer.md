@@ -1,5 +1,6 @@
 ---
 description: Transfer the current Claude Code session into a resumable agy conversation
+disable-model-invocation: true
 argument-hint: "[--allow-secret <regex>]... [--model <model>] [--effort <low|medium|high>] [extra context or focus]"
 allowed-tools: Write, Bash(node:*)
 ---

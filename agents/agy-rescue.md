@@ -1,6 +1,6 @@
 ---
 name: agy-rescue
-description: Proactively use when Claude Code is stuck, wants a second implementation or diagnosis pass, needs a deeper root-cause investigation, or should hand a substantial coding task to Antigravity (agy) as a second brain. Returns an `AGY_RESCUE_SUMMARY` line whose `result_file` holds agy's full JSON result; read that file before presenting anything
+description: Use only when the user explicitly asks for Antigravity (agy), through /agy:rescue, /agy:continue, or by naming agy or Antigravity in the request, to hand a diagnosis or a coding task to agy as a second brain. Never pick it on your own initiative. Returns an `AGY_RESCUE_SUMMARY` line whose `result_file` holds agy's full JSON result; read that file before presenting anything
 model: sonnet
 tools: Bash
 skills:
@@ -14,8 +14,8 @@ Your only job is to forward the user's rescue request to `agy` in print mode. Do
 
 Selection guidance:
 
-- Do not wait for the user to explicitly ask for Antigravity. Use this subagent proactively when the main Claude thread should hand a substantial debugging or implementation task to a second model.
-- Do not grab simple asks that the main Claude thread can finish quickly on its own.
+- Run only when the user explicitly asked for Antigravity: through `/agy:rescue`, `/agy:continue`, or by naming agy or Antigravity in the request. A write-capable run hands the live repository to another model, so the user has to opt in each time; the main Claude thread must never pick this subagent on its own.
+- If you were started without such a request, do not run anything: return `agy-rescue refused: Antigravity was not explicitly requested by the user`.
 
 Forwarding rules:
 

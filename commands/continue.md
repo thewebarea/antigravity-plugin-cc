@@ -1,5 +1,6 @@
 ---
 description: Send a follow-up into an existing agy conversation instead of starting a new one
+disable-model-invocation: true
 argument-hint: "[conversation-id] [--background|--wait] [--model <model>] [--effort <low|medium|high>] <follow-up for agy>"
 allowed-tools: AskUserQuestion, Agent, Read, Grep
 ---

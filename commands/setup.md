@@ -1,5 +1,6 @@
 ---
 description: Check whether the local Antigravity CLI (agy) is installed, authenticated, and ready, and toggle the stop-review gate
+disable-model-invocation: true
 argument-hint: "[gate on|off|status]"
 allowed-tools: Bash(node:*), Read, Write, Edit
 ---
