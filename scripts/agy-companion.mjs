@@ -335,6 +335,27 @@ export function parseTransferArguments(argument) {
   return parsed;
 }
 
+// The command writes the brief to the session scratchpad, which lives under the
+// system temp directory. Any other path is a real file the model named by
+// mistake (a plan or notes in the repository), so it is sent but never deleted:
+// only a regular file under the temp directory and outside the workspace goes.
+export function isScratchBrief(briefPath, workspaceRoot) {
+  try {
+    const real = fs.realpathSync(briefPath);
+    if (!fs.lstatSync(real).isFile()) {
+      return false;
+    }
+    const tmp = fs.realpathSync(os.tmpdir());
+    const inside = (dir) => {
+      const relative = path.relative(dir, real);
+      return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+    };
+    return inside(tmp) && !inside(fs.realpathSync(workspaceRoot));
+  } catch {
+    return false;
+  }
+}
+
 // `run` is the low-level runner forwarded to `runPromptWithDenialRecovery`,
 // the same injectable third parameter that function already defines
 // (defaulting to the real `runPrompt`). `transfer` is not isolated: cwd and
@@ -386,14 +407,18 @@ export function transfer({ argument, run = runPrompt, available = agyAvailable, 
     (p, options) => runPromptWithDenialRecovery(p, options, run, now),
     now
   );
-  try {
-    fs.rmSync(briefPath, { force: true });
-  } catch {
-    // A leftover brief in a scratch directory is not worth failing the handoff.
+  const briefRemoved = isScratchBrief(briefPath, cwd);
+  if (briefRemoved) {
+    try {
+      fs.rmSync(briefPath, { force: true });
+    } catch {
+      // A leftover brief in a scratch directory is not worth failing the handoff.
+    }
   }
 
   return {
     ok: out.ok,
+    briefRemoved,
     result: out.result,
     deniedActions: out.deniedActions,
     recovery: out.recovery,

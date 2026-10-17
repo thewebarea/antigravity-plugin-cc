@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 import {
   extractImagePath,
   image,
+  isScratchBrief,
   main,
   parseFlaggedArguments,
   parseReviewArguments,
@@ -171,6 +172,41 @@ test("a clean transfer brief proceeds and is removed after", () => {
     assert.equal(calls.length, 1);
     assert.match(calls[0].prompt, /Handoff notes with nothing sensitive/);
     assert.ok(!fs.existsSync(file), "a successful transfer removes the brief file");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a transfer brief outside the temp directory is sent but never deleted", () => {
+  const calls = [];
+  // A file in the repository stands for a real plan the model named as the
+  // brief by mistake: it must survive the handoff.
+  const dir = fs.mkdtempSync(path.join(process.cwd(), ".agy-brief-test-"));
+  const file = path.join(dir, "plan.md");
+  fs.writeFileSync(file, "A real plan that lives in the repository.\n");
+  try {
+    const out = transfer({ argument: file, run: fakeRun(calls), available: () => true });
+    assert.equal(out.ok, true);
+    assert.equal(calls.length, 1);
+    assert.equal(out.briefRemoved, false);
+    assert.ok(fs.existsSync(file), "a brief outside the temp directory must not be deleted");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("only a regular file under the temp directory counts as a scratch brief", () => {
+  const { dir, file } = scratchBrief("notes\n");
+  try {
+    assert.equal(isScratchBrief(file, process.cwd()), true);
+    assert.equal(isScratchBrief(dir, process.cwd()), false, "a directory is not a brief");
+    assert.equal(isScratchBrief(path.join(dir, "missing.md"), process.cwd()), false);
+    // A temp file inside the workspace (a repository under /tmp) is not scratch.
+    assert.equal(isScratchBrief(file, dir), false);
+    const link = path.join(dir, "link.md");
+    const outside = path.join(process.cwd(), "package.json");
+    fs.symlinkSync(outside, link);
+    assert.equal(isScratchBrief(link, dir + "-elsewhere"), false, "a symlink to a repository file is not scratch");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
