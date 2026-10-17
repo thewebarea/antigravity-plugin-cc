@@ -8,7 +8,7 @@
 // is one character-class run, not a repeated group: a repeated group on a
 // 16 MB value would overflow V8's backtrack stack.
 const PLACEHOLDER =
-  /^(?:x[x ]{2,}|\*[* ]{2,}|change[- ]?me[- a-z]*|<[^>]*>|\$\{[^}]*\}|your[-_a-z0-9 ]*|example[-_a-z0-9 ]*|placeholder)$/i;
+  /^(?:x[x ]{2,}|\*[* ]{2,}|change[- ]?me[- a-z]*|<[^>]*>|\$\{[^}]*\}|your[-_a-z0-9 ]*|example[-_a-z0-9 ]*|placeholder|put your unique phrase here)$/i;
 
 // An environment-variable reference is not a secret, it is how a repository
 // keeps one out of the text, so it only excludes a hit when it is the ENTIRE
@@ -101,6 +101,38 @@ const PATTERNS = [
       /\b((?=[A-Z0-9_]*(?:SECRET|TOKEN|PASSWORD|API_KEY))[A-Z0-9_]+|(?=[a-z0-9_]*(?:secret|token|password|api_key))[a-z0-9_]+)["']?\s*[=:]\s*(?:"([^"]{16}[^"]*)"|'([^']{16}[^']*)'|["']?([^\s"']{16}[^\s"']*))/,
     valueGroup: [2, 3, 4],
     ignore: (match) => match[4] !== undefined && /[a-z]/.test(match[1]) && CODE_VALUE.test(match[4])
+  },
+  // Provider token shapes with a fixed prefix. They come after the assignment
+  // kinds, so `OPENAI_API_KEY=sk-...` keeps reporting as an assignment and only
+  // a bare token in code or prose reaches these. Each floor is `X{n}X*`, as above.
+  // `sk-` covers OpenAI (`sk-`, `sk-proj-`, `sk-svcacct-`, `sk-admin-`) and
+  // Anthropic (`sk-ant-`); the 32-character floor keeps kebab-case words out.
+  { kind: "llm-api-key", regex: /\bsk-(?:ant-|proj-|svcacct-|admin-)?[A-Za-z0-9_-]{32}[A-Za-z0-9_-]*/ },
+  { kind: "gitlab-token", regex: /\bglpat-[A-Za-z0-9_-]{20}[A-Za-z0-9_-]*/ },
+  { kind: "npm-token", regex: /\bnpm_[A-Za-z0-9]{36}\b/ },
+  { kind: "huggingface-token", regex: /\bhf_[A-Za-z0-9]{34}[A-Za-z0-9]*\b/ },
+  { kind: "telegram-bot-token", regex: /\b[0-9]{8}[0-9]?[0-9]?:AA[A-Za-z0-9_-]{33}(?![A-Za-z0-9_-])/ },
+  {
+    // WordPress wp-config.php and OpenCart config.php keep the database
+    // password and the salts in `define('NAME', 'value')`, which the
+    // assignment kind cannot see (the name is quoted and followed by a comma).
+    // No length floor: a database password is often short. The name uses the
+    // same lookahead-then-single-run shape as secret-assignment, so it stays
+    // linear. wp-config-sample.php's "put your unique phrase here" is a
+    // placeholder.
+    kind: "php-define-secret",
+    regex:
+      /\bdefine\s*\(\s*['"]((?=[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|_KEY|_SALT))[A-Z0-9_]+)['"]\s*,\s*(?:'([^']+)'|"([^"]+)")/,
+    valueGroup: [2, 3]
+  },
+  {
+    // A dotenv password (`DB_PASSWORD=qwerty123`), unquoted and with no spaces
+    // around `=`, which secret-assignment misses under its 16-character floor.
+    // A value starting with a quote, `$` or `<` is left to the other kinds and
+    // to the placeholder and environment-reference checks.
+    kind: "env-password",
+    regex: /\b((?=[A-Z0-9_]*PASSWORD=)[A-Z0-9_]+)=([^\s"'#$<]{4}[^\s"'#]*)/,
+    valueGroup: 2
   }
 ].map((pattern) => ({ ...pattern, global: new RegExp(pattern.regex.source, `${pattern.regex.flags}g`) }));
 

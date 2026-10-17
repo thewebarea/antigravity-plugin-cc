@@ -60,7 +60,10 @@ send, per command:
   private key block, GitHub, Slack, Google or Stripe secret
   (`sk_live_`/`sk_test_`) tokens, JWTs, bearer tokens,
   `SECRET`/`TOKEN`/`PASSWORD`/`API_KEY` assignments,
-  `scheme://user:password@host` URLs) blocks the run and names the line and
+  `scheme://user:password@host` URLs, OpenAI and Anthropic `sk-` keys,
+  GitLab `glpat-`, npm `npm_`, Hugging Face `hf_` and Telegram bot tokens,
+  `define('DB_PASSWORD', ...)` and salt lines from WordPress and OpenCart
+  configs, and short dotenv passwords such as `DB_PASSWORD=qwerty123`) blocks the run and names the line and
   kind, never the value. An assignment is caught with the name in all upper
   case or all lower case (`password: ...` in YAML), a quote before the
   separator (`"API_KEY": "..."`), and a quoted value that contains spaces;

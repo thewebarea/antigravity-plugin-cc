@@ -69,7 +69,20 @@ const positives = [
   // URL shape itself can catch this (F34).
   ["credential-url", `DATABASE_URL=${CRED_URL}`],
   ["credential-url", `const url = "https://deploy:${URL_PASSWORD}@registry.example";`],
-  ["credential-url", `redis://:${URL_PASSWORD}@cache:6379/0`]
+  ["credential-url", `redis://:${URL_PASSWORD}@cache:6379/0`],
+  // Provider token shapes, bare in code or prose (an assignment keeps its kind).
+  ["llm-api-key", `const client = new OpenAI({ apiKey: "${"sk-" + "proj-" + REAL + REAL}" });`],
+  ["llm-api-key", `curl -H "x-api-key: ${"sk-" + "ant-" + "api03-" + REAL + REAL}"`],
+  ["gitlab-token", `git clone https://oauth2@gitlab.example/x.git # ${"glpat-" + REAL}`],
+  ["npm-token", `//registry.npmjs.org/:_authToken=${"npm_" + "a".repeat(36)}`],
+  ["huggingface-token", `login(${"hf_" + "Ab".repeat(17)})`],
+  ["telegram-bot-token", `bot = Bot("${"123456789:AA" + "h".repeat(33)}")`],
+  // WordPress and OpenCart configs keep short passwords in define().
+  ["php-define-secret", "define( 'DB_PASSWORD', 'qwerty123' );"],
+  ["php-define-secret", 'define("DB_PASSWORD", "s3cr3t");'],
+  ["php-define-secret", `define( 'AUTH_KEY', '${REAL}' );`],
+  // A short dotenv password that secret-assignment's floor lets through.
+  ["env-password", "DB_PASSWORD=qwerty123"]
 ];
 
 for (const [kind, line] of positives) {
@@ -130,7 +143,19 @@ const negatives = [
   "DATABASE_URL=postgres://app:${DB_PASSWORD}@db.internal/app",
   "DATABASE_URL=postgres://app:$DB_PASSWORD@db.internal/app",
   "DATABASE_URL=postgres://app:<password>@db.internal/app",
-  "mail me at someone@example.com or see http://example.com:80/"
+  "mail me at someone@example.com or see http://example.com:80/",
+  // The new kinds around ordinary code and docs.
+  "pip install scikit-learn; import sk-learn is not a key",
+  "the task-runner-and-build-step-config-loader is not a key either",
+  "define( 'AUTH_KEY', 'put your unique phrase here' );",
+  "define( 'DB_PASSWORD', getenv('DB_PASSWORD') );",
+  "define( 'DB_PASSWORD', '' );",
+  "define( 'DB_NAME', 'wordpress_db' );",
+  "DB_PASSWORD=${DB_PASSWORD}",
+  "DB_PASSWORD=$DB_PASSWORD",
+  "DB_PASSWORD=",
+  "DB_PASSWORD = os.environ.get('DB_PASSWORD')",
+  "hf_hub_download(repo_id, filename)"
 ];
 
 for (const line of negatives) {
@@ -1080,4 +1105,26 @@ test("quoted prose under a lower-case keyword name hits, the accepted F35-class 
   const { hits } = scanForSecrets('password_label: "Please enter your password"');
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "secret-assignment");
+});
+
+// The provider, define() and dotenv kinds added in the fork must stay linear on
+// shapes built to make them backtrack: a long run after each prefix with no
+// valid end, many `define(` starts with no closing quote, and long upper-case
+// names with PASSWORD but no `=`.
+test("the provider, define and dotenv kinds scan adversarial lines in bounded time", () => {
+  const lines = [
+    "sk-" + "a-".repeat(200000),
+    "glpat-" + "-".repeat(400000),
+    "define('" .repeat(50000) + "DB_PASSWORD",
+    "define('DB_PASSWORD', '" + "x".repeat(400000),
+    "PASSWORD".repeat(50000),
+    "A_PASSWORD_".repeat(40000) + "=",
+    "123456789:AA" + "h".repeat(400000)
+  ];
+  const started = process.hrtime.bigint();
+  for (const line of lines) {
+    scanForSecrets(line);
+  }
+  const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+  assert.ok(elapsedMs < 2000, `the new-kind adversarial lines took ${elapsedMs.toFixed(0)} ms`);
 });
